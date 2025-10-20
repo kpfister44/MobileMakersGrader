@@ -171,8 +171,9 @@ public class GradeProcessor {
     }
 
     public void gradeAll(Path submissionsPath, Path resultsDir) throws IOException {
-        // Initialize grading cache
-        gradingCache = new GradingCache(resultsDir.toString());
+        // Initialize grading cache in persistent location (not timestamped folder)
+        // This ensures cache persists across runs for cost protection
+        gradingCache = new GradingCache("results");
 
         Map<String, String> submissions = fileReader.readStudentSubmissions(submissionsPath);
         List<GradeRecord> records = new ArrayList<>();
