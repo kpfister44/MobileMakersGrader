@@ -31,13 +31,15 @@ public class GradeProcessor {
     private final LMStudioGrader lmStudioGrader;
     private final SchoologyCommentUpdater schoologyCommentUpdater;
     private final String schoologyAssignmentColumnName;
+    private final String assignmentId;
+    private final String assignmentName;
     private final boolean useLocalModel;
     private final boolean enableSchoologyComments;
     private final boolean enableSchoologyGrades;
     private GradingCache gradingCache;
 
     public GradeProcessor(SwiftFileReader fileReader, AssignmentPrompt assignmentPrompt, OpenAIGrader openAIGrader) {
-        this(fileReader, assignmentPrompt, openAIGrader, null, "Assignment");
+        this(fileReader, assignmentPrompt, openAIGrader, null, "Assignment", null, null);
     }
 
     public GradeProcessor(SwiftFileReader fileReader,
@@ -45,6 +47,16 @@ public class GradeProcessor {
                           OpenAIGrader openAIGrader,
                           LMStudioGrader lmStudioGrader,
                           String schoologyAssignmentColumnName) {
+        this(fileReader, assignmentPrompt, openAIGrader, lmStudioGrader, schoologyAssignmentColumnName, null, null);
+    }
+
+    public GradeProcessor(SwiftFileReader fileReader,
+                          AssignmentPrompt assignmentPrompt,
+                          OpenAIGrader openAIGrader,
+                          LMStudioGrader lmStudioGrader,
+                          String schoologyAssignmentColumnName,
+                          String assignmentId,
+                          String assignmentName) {
         this.fileReader = fileReader;
         this.assignmentPrompt = assignmentPrompt;
         this.openAIGrader = openAIGrader;
@@ -54,6 +66,15 @@ public class GradeProcessor {
         } else {
             this.schoologyAssignmentColumnName = schoologyAssignmentColumnName.trim();
         }
+
+        // Assignment ID and name for batch mode
+        // Falls back to config if not provided (backward compatibility)
+        this.assignmentId = (assignmentId != null && !assignmentId.isBlank())
+                ? assignmentId
+                : Config.get("SCHOOLOGY_ASSIGNMENT_ID", "unknown_assignment");
+        this.assignmentName = (assignmentName != null && !assignmentName.isBlank())
+                ? assignmentName
+                : schoologyAssignmentColumnName;
 
         // Determine which model to use based on environment variable
         this.useLocalModel = Config.getBoolean("USE_LOCAL_MODEL");
@@ -77,7 +98,6 @@ public class GradeProcessor {
         if (enableSchoologyComments || enableSchoologyGrades) {
             String baseUrl = Config.get("SCHOOLOGY_BASE_URL");
             String courseId = Config.get("SCHOOLOGY_COURSE_ID");
-            String assignmentId = Config.get("SCHOOLOGY_ASSIGNMENT_ID");
             String sessionCookie = readSchoologyCookie();
             String csrfKey = Config.get("SCHOOLOGY_CSRF_KEY");
             String csrfToken = Config.get("SCHOOLOGY_CSRF_TOKEN");
@@ -86,7 +106,7 @@ public class GradeProcessor {
             String gradingPeriodId = Config.get("SCHOOLOGY_GRADING_PERIOD_ID");
             String sectionId = Config.get("SCHOOLOGY_SECTION_ID");
 
-            if (baseUrl == null || courseId == null || assignmentId == null ||
+            if (baseUrl == null || courseId == null || this.assignmentId == null ||
                 sessionCookie == null || csrfKey == null || csrfToken == null) {
                 throw new IllegalStateException(
                     "ENABLE_SCHOOLOGY_COMMENTS/GRADES is true but required configuration is missing. " +
@@ -104,7 +124,7 @@ public class GradeProcessor {
             }
 
             this.schoologyCommentUpdater = new SchoologyCommentUpdater(
-                baseUrl, courseId, assignmentId, sessionCookie, csrfKey, csrfToken,
+                baseUrl, courseId, this.assignmentId, sessionCookie, csrfKey, csrfToken,
                 gradingPeriodId, sectionId
             );
 
@@ -151,14 +171,9 @@ public class GradeProcessor {
     }
 
     public void gradeAll(Path submissionsPath, Path resultsDir) throws IOException {
-        // Initialize grading cache
-        gradingCache = new GradingCache(resultsDir.toString());
-
-        // Get assignment ID from config (for cache tracking)
-        String assignmentId = Config.get("SCHOOLOGY_ASSIGNMENT_ID");
-        if (assignmentId == null || assignmentId.isBlank()) {
-            assignmentId = "unknown_assignment";
-        }
+        // Initialize grading cache in persistent location (not timestamped folder)
+        // This ensures cache persists across runs for cost protection
+        gradingCache = new GradingCache("results");
 
         Map<String, String> submissions = fileReader.readStudentSubmissions(submissionsPath);
         List<GradeRecord> records = new ArrayList<>();
@@ -187,7 +202,7 @@ public class GradeProcessor {
             int highestRevision = 0;
             try {
                 highestRevision = fileReader.findHighestRevision(studentDir);
-                int lastGradedRevision = gradingCache.getLastGradedRevision(schoolUid, assignmentId);
+                int lastGradedRevision = gradingCache.getLastGradedRevision(schoolUid, this.assignmentId);
 
                 if (highestRevision <= lastGradedRevision) {
                     LOGGER.info("⊘ Skipped {} - Revision {} already graded (last graded: revision {})",
@@ -229,7 +244,7 @@ public class GradeProcessor {
                 gradingCache.updateGrade(
                     schoolUid,
                     studentKey,
-                    assignmentId,
+                    this.assignmentId,
                     schoologyAssignmentColumnName,
                     currentRevision,
                     result.score()
