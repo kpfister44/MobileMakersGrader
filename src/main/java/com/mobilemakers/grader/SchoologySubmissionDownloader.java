@@ -32,13 +32,21 @@ public class SchoologySubmissionDownloader {
     private final String sessionCookie;
     private final String csrfKey;
     private final String csrfToken;
+    private final SubmissionCache cache;
 
     public SchoologySubmissionDownloader(String baseUrl, String sessionCookie,
                                           String csrfKey, String csrfToken) {
+        this(baseUrl, sessionCookie, csrfKey, csrfToken, null);
+    }
+
+    public SchoologySubmissionDownloader(String baseUrl, String sessionCookie,
+                                          String csrfKey, String csrfToken,
+                                          SubmissionCache cache) {
         this.baseUrl = baseUrl;
         this.sessionCookie = sessionCookie;
         this.csrfKey = csrfKey;
         this.csrfToken = csrfToken;
+        this.cache = cache;
         this.client = new OkHttpClient.Builder()
                 .callTimeout(Duration.ofMinutes(5))
                 .connectTimeout(Duration.ofSeconds(30))
@@ -363,6 +371,87 @@ public class SchoologySubmissionDownloader {
             });
         } catch (IOException e) {
             LOGGER.warn("Failed to delete directory: {}", path, e);
+        }
+    }
+
+    /**
+     * Downloads and extracts submissions with caching support.
+     * Checks cache first - only downloads if server has updates.
+     *
+     * @param assignmentId Schoology assignment ID
+     * @param assignmentName Human-readable assignment name
+     * @return Path to submissions directory (may be cached or freshly downloaded)
+     * @throws IOException if download or extraction fails
+     */
+    public Path downloadAndExtractIfNeeded(String assignmentId, String assignmentName) throws IOException {
+        // If no cache provided, always download
+        if (cache == null) {
+            LOGGER.debug("No cache configured, downloading submissions");
+            Path zipFile = downloadSubmissions(assignmentId, assignmentName);
+            return extractAndOrganizeSubmissions(zipFile, assignmentName);
+        }
+
+        // Check server's Last-Modified header
+        String serverLastModified = getServerLastModified(assignmentId);
+
+        // Check if download is needed
+        if (!cache.needsDownload(assignmentId, serverLastModified)) {
+            // Cache hit - return cached path
+            String cachedPath = cache.getCachedPath(assignmentId);
+            if (cachedPath != null && Files.exists(Path.of(cachedPath))) {
+                LOGGER.info("⊘ Using cached submissions from: {}", cachedPath);
+                return Path.of(cachedPath);
+            } else {
+                LOGGER.warn("Cache entry exists but path not found, re-downloading");
+            }
+        }
+
+        // Cache miss - download and extract
+        LOGGER.info("→ Downloading fresh submissions for: {}", assignmentName);
+        Path zipFile = downloadSubmissions(assignmentId, assignmentName);
+        Path submissionsDir = extractAndOrganizeSubmissions(zipFile, assignmentName);
+
+        // Update cache
+        cache.updateDownload(assignmentId, assignmentName, serverLastModified,
+                submissionsDir.toString());
+        cache.save();
+
+        return submissionsDir;
+    }
+
+    /**
+     * Checks the server's Last-Modified header for an assignment without downloading.
+     * Uses a HEAD request for efficiency.
+     *
+     * @param assignmentId Assignment ID
+     * @return Last-Modified header value, or null if not available
+     */
+    private String getServerLastModified(String assignmentId) {
+        String url = baseUrl + "/assignment/" + assignmentId + "/dropbox/download_all";
+
+        Request request = new Request.Builder()
+                .url(url)
+                .head() // HEAD request - no body downloaded
+                .header("Cookie", sessionCookie)
+                .header("x-csrf-key", csrfKey)
+                .header("x-csrf-token", csrfToken)
+                .header("accept", "*/*")
+                .header("referer", baseUrl + "/assignment/" + assignmentId + "/info")
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                String lastModified = response.header("Last-Modified");
+                LOGGER.debug("Server Last-Modified for assignment {}: {}", assignmentId, lastModified);
+                return lastModified;
+            } else {
+                LOGGER.warn("HEAD request failed for assignment {} (HTTP {}), will download anyway",
+                        assignmentId, response.code());
+                return null;
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to check Last-Modified header: {}", e.getMessage());
+            return null;
         }
     }
 }
