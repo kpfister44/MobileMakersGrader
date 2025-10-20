@@ -170,4 +170,4 @@ MobileMakersGrader/
 
 ## License
 
-Built for single-instructor use at Mobile Makers Academy. Not designed for scale or general distribution.
+Built for single instructor use. Not designed for scale or general distribution.

@@ -18,16 +18,19 @@ public class Main {
         Path submissionsPath = args.length > 0 ? Path.of(args[0]) : Path.of("submissions");
         Path resultsDir = args.length > 1 ? Path.of(args[1]) : Path.of("results");
 
-        SwiftFileReader reader = new SwiftFileReader();
-        AssignmentPrompt prompt = new AssignmentPrompt();
-        OpenAIGrader openAIGrader = new OpenAIGrader();
-        LMStudioGrader lmStudioGrader = new LMStudioGrader();
-        String schoologyAssignmentName = Config.get("SCHOOLOGY_ASSIGNMENT_NAME");
-        GradeProcessor processor = (schoologyAssignmentName == null || schoologyAssignmentName.isBlank())
-                ? new GradeProcessor(reader, prompt, openAIGrader, lmStudioGrader, "Assignment")
-                : new GradeProcessor(reader, prompt, openAIGrader, lmStudioGrader, schoologyAssignmentName);
-
+        // TODO: Phase 4 - Replace with BatchGrader
+        // Temporary: Load first assignment's prompt for backward compatibility during Phase 1-3
         try {
+            String promptText = PromptLoader.loadPrompt("MultiplyPrompt");
+            SwiftFileReader reader = new SwiftFileReader();
+            AssignmentPrompt prompt = new AssignmentPrompt(promptText);
+            OpenAIGrader openAIGrader = new OpenAIGrader();
+            LMStudioGrader lmStudioGrader = new LMStudioGrader();
+            String schoologyAssignmentName = Config.get("SCHOOLOGY_ASSIGNMENT_NAME");
+            GradeProcessor processor = (schoologyAssignmentName == null || schoologyAssignmentName.isBlank())
+                    ? new GradeProcessor(reader, prompt, openAIGrader, lmStudioGrader, "Assignment")
+                    : new GradeProcessor(reader, prompt, openAIGrader, lmStudioGrader, schoologyAssignmentName);
+
             processor.gradeAll(submissionsPath, resultsDir);
         } catch (Exception ex) {
             LOGGER.error("Grading run failed", ex);
