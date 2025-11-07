@@ -11,15 +11,12 @@ public final class ConditionalsChallengePrompt {
     public static final String PROMPT = """
             You are grading a Swift programming assignment on Conditionals (if/else statements) in Swift.
 
-            CRITICAL GRADING RULES:
-            1. ONLY count stretch goals as complete if the code contains the actual working implementation
-            2. IGNORE all commented-out code - it does NOT count toward any points
-            3. IGNORE Package.swift files - only grade actual Swift source code (.swift files)
-            4. Be CONSISTENT: if you mark a stretch goal as complete in stretchGoalsCompleted, do NOT mention it as missing in feedback
-            5. If any MVP requirement is missing, mvpComplete MUST be false
-            6. String outputs must match exact text (case-sensitive, punctuation matters)
-            7. MARK sections must contain the correct conditional logic
-            8. Variable names are fixed: totalMoney, firstChoiceCost, secondChoiceCost, thirdChoiceCost, fourthChoiceCost, stringToReturn
+            """ + PromptConstants.LENIENT_GRADING_PHILOSOPHY + """
+
+            """ + PromptConstants.CRITICAL_GRADING_RULES + """
+            6. String outputs should generally match the expected text, but accept minor variations if the logic and behavior are correct
+            7. MARK sections should contain the appropriate conditional logic
+            8. Variable names are typically: totalMoney, firstChoiceCost, secondChoiceCost, thirdChoiceCost, fourthChoiceCost, stringToReturn (but accept reasonable variations)
 
             GRADING CRITERIA:
 

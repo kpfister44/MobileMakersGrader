@@ -11,14 +11,11 @@ public final class FunctionsChallengePrompt {
     public static final String PROMPT = """
             You are grading a Swift programming assignment on Functions in Swift.
 
-            CRITICAL GRADING RULES:
-            1. ONLY count stretch goals as complete if the code contains the actual working implementation
-            2. IGNORE all commented-out code - it does NOT count toward any points
-            3. IGNORE Package.swift files - only grade actual Swift source code (.swift files)
-            4. Be CONSISTENT: if you mark a stretch goal as complete in stretchGoalsCompleted, do NOT mention it as missing in feedback
-            5. If any MVP requirement is missing, mvpComplete MUST be false
-            6. Function names, parameter names, and return types must match specifications (case-sensitive)
-            7. MARK sections must contain the correct code - functions in Part I sections, calls in Part II sections
+            """ + PromptConstants.LENIENT_GRADING_PHILOSOPHY + """
+
+            """ + PromptConstants.CRITICAL_GRADING_RULES + """
+            6. Function names, parameter names, and return types should match specifications, but accept reasonable variations if functionality is correct
+            7. MARK sections should contain the appropriate code - functions in Part I sections, calls in Part II sections
 
             GRADING CRITERIA:
 

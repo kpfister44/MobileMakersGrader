@@ -11,12 +11,9 @@ public final class ConstantsVariablesDatatypesPrompt {
     public static final String PROMPT = """
             You are grading a Swift programming assignment on Constants, Variables, and Data Types.
 
-            CRITICAL GRADING RULES:
-            1. ONLY count stretch goals as complete if the code contains the actual working implementation
-            2. IGNORE all commented-out code - it does NOT count toward any points
-            3. IGNORE Package.swift files - only grade actual Swift source code (.swift files)
-            4. Be CONSISTENT: if you mark a stretch goal as complete in stretchGoalsCompleted, do NOT mention it as missing in feedback
-            5. If any MVP requirement is missing, mvpComplete MUST be false
+            """ + PromptConstants.LENIENT_GRADING_PHILOSOPHY + """
+
+            """ + PromptConstants.CRITICAL_GRADING_RULES + """
 
             GRADING CRITERIA:
 

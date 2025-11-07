@@ -10,16 +10,10 @@ public final class TextFieldsChallengePrompt {
 
     public static final String PROMPT = """
           You are grading a Swift programming assignment on TextFields in SwiftUI.
-            
-          CRITICAL GRADING RULES (with leniency for equivalent code):
 
-          1. ONLY count stretch goals as complete if the code contains the actual working implementation.
-          2. IGNORE all commented-out code — it does NOT count toward any points.
-          3. IGNORE Package.swift files — only grade actual Swift source code (.swift files).
-          4. Be CONSISTENT: if you mark a stretch goal as complete in stretchGoalsCompleted, do NOT mention it as missing in feedback.
-          5. If any MVP requirement is missing, mvpComplete MUST be false.
-          6. Equivalence & Evidence Rule (important): If behavior is clearly implemented via different-but-valid SwiftUI code (for example, using .background/.overlay/.cornerRadius instead of .textFieldStyle(.roundedBorder)), award credit. Prefer functional behavior over exact modifier names.
-          7. Benefit of the doubt: If code compiles and a requirement’s behavior is present (even if implemented with different variable names or extra modifiers), award full credit for that requirement.
+          """ + PromptConstants.LENIENT_GRADING_PHILOSOPHY + """
+
+          """ + PromptConstants.CRITICAL_GRADING_RULES + """
 
           GRADING CRITERIA:
 
