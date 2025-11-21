@@ -109,26 +109,26 @@ Minimize API costs and processing time with intelligent caching:
 
 ---
 
-### 4. Seamless Schoology Integration
+### 4. Seamless LMS Integration
 
-Automatically post grades and feedback directly to Schoology LMS:
+Automatically post grades and feedback directly to the Learning Management System:
 
 **Grade Posting:**
 - Numeric scores appear instantly in gradebook
-- Single HTTP PUT request per student (~0.5 seconds)
-- Uses reverse-engineered Schoology grading API
+- Single API request per student (~0.5 seconds)
+- Direct integration with LMS grading system
 
 **Comment Posting:**
-- Feedback summaries appear in student assignment dropboxes
-- Two-step CSRF token extraction process
+- Feedback summaries appear in student assignment submissions
+- Automated authentication and session management
 - ~1-2 seconds per student
 
 **Technical highlights:**
-- Session cookie authentication with 24-hour expiration
-- CSRF token management (different tokens for grades vs. comments)
-- Student UID mapping via enrollment API
+- Session-based authentication with automatic token refresh
+- CSRF token management for secure API requests
+- Student identifier mapping via enrollment data
 - Graceful degradation (CSV export always works if API fails)
-- HTML response detection for error handling
+- Robust error handling and retry logic
 
 ---
 
@@ -209,10 +209,10 @@ RESPOND IN JSON FORMAT:
 - **SubmissionCache** - HTTP-based download optimization
 
 ### External Integrations
-- **Schoology LMS API** - Reverse-engineered endpoints for:
-  - Enrollment data (student UID mappings)
-  - Grade posting (PUT `/iapi/grades/grader_grade_data`)
-  - Comment posting (POST `/assignment/{id}/dropbox/view/{uid}`)
+- **LMS Integration** - Custom API client for:
+  - Enrollment data (student identifier mappings)
+  - Automated grade posting to gradebook
+  - Feedback comment posting to student submissions
 
 ---
 
@@ -431,9 +431,9 @@ SCHOOLOGY_CSRF_KEY=your-csrf-key-here
 SCHOOLOGY_CSRF_TOKEN=your-csrf-token-here
 ```
 
-Create `.schoology-cookie` file (if using Schoology integration):
+Create `.schoology-cookie` file (if using LMS integration):
 ```
-has_js=1; apt.uid=AP-IBYB1G3SIPA6-2-1755022324706-31284494.0.2.6513d47d-6c07-47df-a93c-60f85439fa54; SESSff8a9a578b33909b0e365eb21af2201f=fa9b408331098bda806f7876c0763079; ...
+[Session authentication cookie - contact for setup details]
 ```
 
 **4. Run the grader:**
@@ -451,7 +451,7 @@ java -jar target/swift-grader-0.1.0-SNAPSHOT.jar
 
 - **Console output:** Real-time grading progress and summary
 - **CSV files:** `results/{AssignmentName}-YYYYMMDD-HHMMSS/grades-*.csv`
-- **Schoology:** Grades and comments automatically posted (if enabled)
+- **LMS:** Grades and comments automatically posted (if enabled)
 
 ---
 
@@ -470,15 +470,15 @@ All configuration is managed through the `.env` file (automatically loaded at st
 - `ASSIGNMENT_N_NAME` - Assignment name (for folder naming)
 - `ASSIGNMENT_N_PROMPT` - Java class name of prompt (in `prompts/` package)
 
-**Schoology Integration (Optional):**
+**LMS Integration (Optional):**
 - `ENABLE_SCHOOLOGY_GRADES` - Auto-post numeric grades (`true`/`false`)
 - `ENABLE_SCHOOLOGY_COMMENTS` - Auto-post feedback comments (`true`/`false`)
-- `SCHOOLOGY_BASE_URL` - Your Schoology instance URL
+- `SCHOOLOGY_BASE_URL` - Your LMS instance URL
 - `SCHOOLOGY_COURSE_ID` - Course identifier
 - `SCHOOLOGY_GRADING_PERIOD_ID` - Grading period for grade posting
 - `SCHOOLOGY_SECTION_ID` - Course section identifier
-- `SCHOOLOGY_CSRF_KEY` - CSRF token from browser DevTools
-- `SCHOOLOGY_CSRF_TOKEN` - CSRF token from browser DevTools
+- `SCHOOLOGY_CSRF_KEY` - CSRF token for authentication
+- `SCHOOLOGY_CSRF_TOKEN` - CSRF token for authentication
 
 **LM Studio (Optional):**
 - `LM_STUDIO_ENDPOINT` - Local API URL (default: `http://localhost:1234/v1/chat/completions`)
@@ -533,11 +533,11 @@ ASSIGNMENT_4_PROMPT=LoopsChallengePrompt
 
 ### Grading Pipeline
 
-**1. Submission Download (Schoology Integration):**
-- HTTP GET to `/assignment/{id}/dropbox/download_all`
-- Downloads ZIP file with all student submissions
+**1. Submission Download (LMS Integration):**
+- Bulk download API call for all student submissions
+- Downloads ZIP file with all assignment submissions
 - Extracts to `submissions/{AssignmentName}/`
-- Renames folders: `"LastName, FirstName - s123456"` → `"s123456"` (privacy)
+- Renames folders for privacy (removes student names, keeps identifiers only)
 - Flattens revisions: keeps most recent by timestamp
 
 **2. Code Extraction:**
@@ -561,13 +561,15 @@ ASSIGNMENT_4_PROMPT=LoopsChallengePrompt
 - Extracts score, MVP status, stretch goals completed
 - Generates student-friendly 2-3 sentence summary
 - Updates grading cache with revision number
-- Posts to Schoology (if enabled)
+- Posts to LMS (if enabled)
 - Appends to CSV files
 
 **6. Cache Management:**
 - Saves grading cache to `results/grading-cache.json`
 - Saves submission cache to `results/submission-cache.json`
 - Next run loads caches and skips unchanged work
+
+**Note:** LMS integration uses private API endpoints. Detailed implementation documentation available upon request for portfolio review.
 
 ---
 
@@ -587,11 +589,11 @@ ASSIGNMENT_4_PROMPT=LoopsChallengePrompt
 | ↳ OpenAI (GPT-5 mini) | 20-60s/student | ~13-40 min total |
 | ↳ LM Studio (Qwen 3 4B) | 30-60s/student | ~20-40 min total |
 | Cache updates | <0.1s | In-memory operations |
-| Schoology posting (40) | ~60-100s | ~1.5-2.5s per student |
+| LMS posting (40) | ~60-100s | ~1.5-2.5s per student |
 | Cache persistence | <0.1s | Write JSON files |
 | CSV export | <0.1s | Write two small files |
 
-**Total (OpenAI with Schoology):** ~15-42 minutes
+**Total (OpenAI with LMS integration):** ~15-42 minutes
 **Total (LM Studio):** ~20-40 minutes
 
 **Re-run (all cached, no new submissions):**
@@ -629,9 +631,8 @@ Comprehensive technical documentation is available in the `docs/` directory:
 - **[Data Flow](docs/data-flow.md)** - Step-by-step execution flow with performance characteristics
 - **[Caching System](docs/caching-system.md)** - Revision-based cache architecture and behavior
 - **[Batch Grading Feature](docs/BATCH_GRADING_FEATURE.md)** - Multi-assignment processing specification
-- **[Schoology Submission API](docs/schoology-submission-api.md)** - Submission download endpoint details
-- **[Schoology Dropbox Endpoint](docs/schoology-dropbox-endpoint.md)** - Comment posting API reference
-- **[Schoology Enrollment Endpoint](docs/schoology-enrollment-endpoint.md)** - Student UID mapping API
+
+**Note:** Detailed LMS integration documentation available upon request for portfolio review.
 
 ---
 
